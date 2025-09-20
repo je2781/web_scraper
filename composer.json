@@ -10,13 +10,13 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "algolia/scout-extended": "^3.2",
         "guzzlehttp/guzzle": "^7.10",
         "laravel/framework": "^12.0",
         "laravel/scout": "^10.19",
         "laravel/tinker": "^2.10.1",
         "symfony/css-selector": "^7.3",
-        "symfony/dom-crawler": "^7.3",
-        "teamtnt/laravel-scout-tntsearch-driver": "^15.0"
+        "symfony/dom-crawler": "^7.3"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",
@@ -66,6 +66,9 @@
         ],
         "migrate": [
         "@php artisan migrate --force --ansi"
+        ],
+        "seed": [
+            "@php artisan db:seed --ansi"
         ]
     },
     "extra": {

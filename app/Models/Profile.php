@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Scout\Searchable;
 
 class Profile extends Model
 {
-    use Searchable;
+    use Searchable, HasFactory;
 
     protected $fillable = [
-        'username', 'name', 'bio', 'metadata', 'sources', 'likes'
+        'username', 'name', 'bio'
     ];
 
     protected $casts = [

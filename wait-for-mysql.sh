@@ -14,5 +14,8 @@ done
 echo "Running migrations..."
 composer migrate
 
+echo "Running seeders..."
+composer seed
+
 # Start PHP-FPM
 exec php-fpm

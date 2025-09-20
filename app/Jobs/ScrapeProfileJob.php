@@ -5,6 +5,7 @@ namespace App\Jobs;
 use Illuminate\Contracts\Queue\ShouldQueue;
 // use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Bus\Queueable;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Symfony\Component\DomCrawler\Crawler;
 use App\Models\Profile;
 use GuzzleHttp\Client;
@@ -15,7 +16,7 @@ use Psr\Http\Message\ResponseInterface;
 
 class ScrapeProfileJob implements ShouldQueue
 {
-    use InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public string $username;
     public ?string $url;
@@ -118,8 +119,8 @@ class ScrapeProfileJob implements ShouldQueue
         // Example numeric extraction
         $likes = 0;
         try {
-            $likesText = $crawler->filter('.b-profile__sections__link.m-likes > .b-profile__sections__count')->text();
-            $likes = (int) $likesText;
+            $likesNode = $crawler->filter('.b-profile__sections__link.m-likes > .b-profile__sections__count')->first();
+            $likes = $likesNode->count() ? (int) $likesNode->text() : 0;
         } catch (\Exception $e) {
             $likes = 0;
         }

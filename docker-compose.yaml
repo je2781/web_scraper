@@ -64,6 +64,16 @@ services:
       - server
     networks:
       - app
+  scheduler:
+    image: php:8.3-cli
+    container_name: laravel-scheduler
+    volumes:
+      - .:/var/www
+    entrypoint: |
+      sh -c "while true; do
+        php /var/www/artisan schedule:run >> /dev/null 2>&1
+        sleep 60
+      done"
 
 volumes:
   admin_db_data:
