@@ -17,5 +17,8 @@ composer migrate
 echo "Running seeders..."
 composer seed
 
+echo "Importing profiles into Scout..."
+composer import
+
 # Start PHP-FPM
 exec php-fpm

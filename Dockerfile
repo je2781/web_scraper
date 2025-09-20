@@ -24,12 +24,13 @@ WORKDIR /var/www
 COPY . .
 
 # Install Laravel + Horizon before copying full app
-RUN composer install --no-dev --optimize-autoloader \
-    && composer require laravel/horizon
+RUN  composer require laravel/horizon \
+    && composer install --no-dev --optimize-autoloader
 
 
-# Fix permissions
-RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+# Fix permissions for Laravel storage & cache
+RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache \
+    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache  
 
 # Expose php-fpm port
 EXPOSE 9000
