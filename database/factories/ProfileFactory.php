@@ -29,7 +29,7 @@ class ProfileFactory extends Factory
             : $this->faker->numberBetween(1, 100000);      // Below and equal to 100k
 
         return [
-            'username' => strtolower($this->faker->unique()->firstName()),
+            'username' => strtolower($this->faker->unique()->userName()),
             'likes' => $likes,
         ];
     }

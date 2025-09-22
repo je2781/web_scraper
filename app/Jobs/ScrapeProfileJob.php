@@ -25,9 +25,7 @@ class ScrapeProfileJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(public $username)
-    {
-    }
+    public function __construct(public $username) {}
 
     /**
      * Execute the job.
@@ -36,10 +34,11 @@ class ScrapeProfileJob implements ShouldQueue
     {
         try {
 
-            $targetUrl = $this->buildUrlFromUsername($this -> username);
 
+            $targetUrl = $this->buildUrlFromUsername($this->username);
 
             $res = Http::get($targetUrl);
+
 
             if ($res->getStatusCode() !== 200) {
                 throw new \Exception("Failed to fetch {$targetUrl}: {$res->getStatusCode()}");
@@ -59,10 +58,9 @@ class ScrapeProfileJob implements ShouldQueue
                         'bio' => $data['bio'] ?? null,
                         'metadata' => $data['metadata'] ?? null,
                         'sources' => $data['sources'] ?? [$targetUrl],
-                        'likes' => $data['likes'] ?? 0,
+                        'likes' => $data['likes'],
                     ]
                 );
-
             }
 
         } catch (\Exception $e) {
@@ -70,7 +68,8 @@ class ScrapeProfileJob implements ShouldQueue
         }
     }
 
-    protected function buildUrlFromUsername(string $username): string
+
+     protected function buildUrlFromUsername(string $username): string
     {
         return "https://onlyfinder.co/{$username}";
     }
@@ -87,13 +86,9 @@ class ScrapeProfileJob implements ShouldQueue
             // --- Media Links ---
             $mediaLinks = [];
             try {
-                $instaNode = $lastChildNode->filter('a[data-type="instagram"]')->first();
-                $ttNode = $lastChildNode->filter('a[data-type="tiktok"]')->first();
-
-                $mediaLinks = [
-                    'instagram' => $instaNode->count() ? $instaNode->attr('href') : null,
-                    'tiktok' => $ttNode->count() ? $ttNode->attr('href') : null,
-                ];
+                $mediaLinks['instagram'][] = $lastChildNode->filter('a[data-type="instagram"]')->first()->attr('href');
+                $mediaLinks['twitter'][] = $lastChildNode->filter('a[data-type="twitter"]')->first()->attr('href');
+                $mediaLinks['tiktok'][] = $lastChildNode->filter('a[data-type="tiktok"]')->first()->attr('href');
             } catch (\Exception $e) {
                 $mediaLinks = [];
             }
@@ -117,33 +112,31 @@ class ScrapeProfileJob implements ShouldQueue
             }
 
             // --- Likes ---
+
             $likes = 0;
+
+
+            // Extract likes
             try {
-                $imgNode = $lastChildNode->filter('img[alt="Favorite count icon"]')->first();
-                if ($imgNode->count()) {
-                    $parentDiv = $imgNode->getNode(0)->parentNode; // immediate parent <div>
-                    $crawler = new Crawler($parentDiv);
+                $imgNode = $profileNode->filter('img[alt="Favorite count icon"]')->first();
+                $sibling= $imgNode->getNode(0)->nextSibling;   // get the next sibling
 
-                    $likesText = $crawler->filter('span')->count() ? trim($crawler->filter('span')->text()) : trim($parentDiv->textContent);
-
-                    $likes = (int) str_replace(',', '', $likesText);
-                }
+                $likes = $sibling ? (int) trim(str_replace(',', '', $sibling->textContent)) : 0;
             } catch (\Exception $e) {
                 $likes = 0;
             }
-
             // Push profile into results
             $profiles[] = [
                 'name' => $name,
                 'bio' => $bio,
                 'metadata' => $mediaLinks,
                 'username' => $profileNode->attr('data-username'),
-                'sources' => [$url],
+                'sources' => [$profileNode->attr('data-clickurl')],
                 'likes' => $likes,
             ];
         });
 
+
         return $profiles;
     }
-
 }

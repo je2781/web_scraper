@@ -15,6 +15,7 @@
         "laravel/horizon": "^5.34",
         "laravel/scout": "^10.19",
         "laravel/tinker": "^2.10.1",
+        "spatie/browsershot": "^5.0",
         "symfony/css-selector": "^7.3",
         "symfony/dom-crawler": "^7.3"
     },

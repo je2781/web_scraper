@@ -10,9 +10,7 @@ class Profile extends Model
 {
     use Searchable, HasFactory;
 
-    protected $fillable = [
-        'username', 'name', 'bio'
-    ];
+    protected $fillable= ['name', 'username', 'bio', 'likes', 'sources', 'metadata'];
 
     protected $casts = [
         'metadata' => 'array',
