@@ -11,6 +11,10 @@ until nc -z "$host" "$port"; do
   sleep 2
 done
 
+# Fix Laravel permissions every time container starts
+chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+chmod -R 775 /var/www/storage /var/www/bootstrap/cache
+
 echo "Running migrations..."
 composer migrate
 

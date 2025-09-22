@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('profiles', function (Blueprint $table) {
             $table->id();
             $table->string('username')->index();
-            $table->string('display_name')->nullable();
             $table->string('name')->nullable();
             $table->text('bio')->nullable();
             $table->json('metadata')->nullable(); // store raw parsed JSON or array

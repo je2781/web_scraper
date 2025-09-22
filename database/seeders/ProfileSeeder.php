@@ -13,6 +13,6 @@ class ProfileSeeder extends Seeder
      */
     public function run(): void
     {
-        Profile::factory(20)->create();
+        Profile::factory(5)->create();
     }
 }

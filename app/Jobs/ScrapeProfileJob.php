@@ -11,133 +11,139 @@ use App\Models\Profile;
 use GuzzleHttp\Client;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-
-use Psr\Http\Message\ResponseInterface;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class ScrapeProfileJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public string $username;
-    public ?string $url;
+
     public int $tries = 3;
 
 
     /**
      * Create a new job instance.
      */
-    public function __construct(string $username, ?string $url = null)
+    public function __construct(public $username)
     {
-        $this->username = $username;
-        $this->url = $url;
     }
 
     /**
      * Execute the job.
      */
-    public function handle()
+    public function handle(): void
     {
-        // polite defaults
-        $client = new Client([
-            'timeout' => 10,
-            'headers' => [
-                'User-Agent' => 'MyScraperBot/1.0 (+https://yourdomain.com/bot; contact@yourdomain.com)',
-                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            ],
-        ]);
+        try {
 
-        // Resolve URL if not passed (caller should provide a canonical URL)
-        $targetUrl = $this->url ?? $this->buildUrlFromUsername($this->username);
+            $targetUrl = $this->buildUrlFromUsername($this -> username);
 
-        $response = $client->get($targetUrl);
 
-        if ($response->getStatusCode() !== 200) {
-            // handle non-200 gracefully or throw to retry
-            return;
+            $res = Http::get($targetUrl);
+
+            if ($res->getStatusCode() !== 200) {
+                throw new \Exception("Failed to fetch {$targetUrl}: {$res->getStatusCode()}");
+            }
+
+            $html = (string) $res->getBody();
+
+
+            Log::info(substr($html, 0, 500));
+            $dataList = $this->parseProfileHtml($html, $targetUrl);
+
+            foreach ($dataList as $data) {
+                Profile::updateOrCreate(
+                    ['username' => $data['username']],
+                    [
+                        'name' => $data['name'],
+                        'bio' => $data['bio'] ?? null,
+                        'metadata' => $data['metadata'] ?? null,
+                        'sources' => $data['sources'] ?? [$targetUrl],
+                        'likes' => $data['likes'] ?? 0,
+                    ]
+                );
+
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Scraper error: ' . $e->getMessage());
         }
-
-        $html = (string) $response->getBody();
-        $data = $this->parseProfileHtml($html, $targetUrl);
-
-        // Upsert profile record
-        $profile = Profile::updateOrCreate(
-            ['username' => $this->username],
-            [
-                'display_name' => $data['display_name'] ?? null,
-                'name' => $data['name'],
-                'bio' => $data['bio'] ?? null,
-                'metadata' => $data['metadata'] ?? null,
-                'sources' => $data['sources'] ?? [$targetUrl],
-                'likes' => $data['likes'] ?? 0,
-            ]
-        );
-
     }
 
     protected function buildUrlFromUsername(string $username): string
     {
-        return "https://onlyfans.com/{$username}";
+        return "https://onlyfinder.co/{$username}";
     }
 
     protected function parseProfileHtml(string $html, string $url): array
     {
         $crawler = new Crawler($html, $url);
 
-        // NOTE: Do not assume selectors — adapt for the site you have permission to parse.
-        $displayName = null;
-        try {
-            $title = trim($crawler->filter('title')->text());
-            $displayName = $title;
-        } catch (\Exception $e) {
-            $displayName = null;
-        }
+        $profiles = [];
 
-        $name = null;
-        try {
-            $nameNode = $crawler->filter('.g-user-name')->first();
-            $name = $nameNode->count() ? trim($nameNode->text()) : null;
-        } catch (\Exception $e) {
+        $crawler->filter('.user-profile.profile-container')->each(function (Crawler $profileNode) use (&$profiles, $url) {
+            $lastChildNode = $profileNode->children()->last();
+
+            // --- Media Links ---
+            $mediaLinks = [];
+            try {
+                $instaNode = $lastChildNode->filter('a[data-type="instagram"]')->first();
+                $ttNode = $lastChildNode->filter('a[data-type="tiktok"]')->first();
+
+                $mediaLinks = [
+                    'instagram' => $instaNode->count() ? $instaNode->attr('href') : null,
+                    'tiktok' => $ttNode->count() ? $ttNode->attr('href') : null,
+                ];
+            } catch (\Exception $e) {
+                $mediaLinks = [];
+            }
+
+            // --- Name ---
             $name = null;
-        }
+            try {
+                $nameNode = $lastChildNode->filter('a h3')->first();
+                $name = $nameNode->count() ? trim($nameNode->text()) : null;
+            } catch (\Exception $e) {
+                $name = null;
+            }
 
-        $username = null;
-        try {
-            $usernameNode = $crawler->filter('.g-user-username')->first();
-            $username = $usernameNode->count() ? explode('@', trim($usernameNode->text()))[1] : null;
-        } catch (\Exception $e) {
-            $username = null;
-        }
-
-        $bio = null;
-        try {
-            $bioNode = $crawler->filter('.b-user-info__text')->first();
-            $bio = $bioNode->count() ? trim($bioNode->text()) : null;
-        } catch (\Exception $e) {
+            // --- Bio ---
             $bio = null;
-        }
+            try {
+                $bioNode = $lastChildNode->filter('.about-profile p')->first();
+                $bio = $bioNode->count() ? trim($bioNode->text()) : null;
+            } catch (\Exception $e) {
+                $bio = null;
+            }
 
-        // Example numeric extraction
-        $likes = 0;
-        try {
-            $likesNode = $crawler->filter('.b-profile__sections__link.m-likes > .b-profile__sections__count')->first();
-            $likes = $likesNode->count() ? (int) $likesNode->text() : 0;
-        } catch (\Exception $e) {
+            // --- Likes ---
             $likes = 0;
-        }
+            try {
+                $imgNode = $lastChildNode->filter('img[alt="Favorite count icon"]')->first();
+                if ($imgNode->count()) {
+                    $parentDiv = $imgNode->getNode(0)->parentNode; // immediate parent <div>
+                    $crawler = new Crawler($parentDiv);
 
-        $metadata = [
-            'raw_title' => $displayName,
-            // add more data you parse
-        ];
+                    $likesText = $crawler->filter('span')->count() ? trim($crawler->filter('span')->text()) : trim($parentDiv->textContent);
 
-        return [
-            'display_name' => $displayName,
-            'username' => $username,
-            'name' => $name,
-            'bio' => $bio,
-            'metadata' => $metadata,
-            'sources' => [$url],
-            'likes' => $likes,
-        ];
+                    $likes = (int) str_replace(',', '', $likesText);
+                }
+            } catch (\Exception $e) {
+                $likes = 0;
+            }
+
+            // Push profile into results
+            $profiles[] = [
+                'name' => $name,
+                'bio' => $bio,
+                'metadata' => $mediaLinks,
+                'username' => $profileNode->attr('data-username'),
+                'sources' => [$url],
+                'likes' => $likes,
+            ];
+        });
+
+        return $profiles;
     }
+
 }

@@ -3,7 +3,7 @@ FROM php:8.3-fpm
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git unzip curl \
+    git unzip curl procps \
     libpng-dev libjpeg-dev libfreetype6-dev \
     libonig-dev libxml2-dev libzip-dev \
     netcat-openbsd \
@@ -23,9 +23,8 @@ WORKDIR /var/www
 # Now copy the application
 COPY . .
 
-# Install Laravel + Horizon before copying full app
-RUN  composer require laravel/horizon \
-    && composer install --no-dev --optimize-autoloader
+# Install dependencies
+RUN  composer install --no-dev --optimize-autoloader
 
 
 # Fix permissions for Laravel storage & cache
