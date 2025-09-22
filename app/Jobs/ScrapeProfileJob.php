@@ -80,6 +80,8 @@ class ScrapeProfileJob implements ShouldQueue
 
         $profiles = [];
 
+        // looping through every profile returned on the page
+
         $crawler->filter('.user-profile.profile-container')->each(function (Crawler $profileNode) use (&$profiles, $url) {
             $lastChildNode = $profileNode->children()->last();
 
@@ -125,7 +127,7 @@ class ScrapeProfileJob implements ShouldQueue
             } catch (\Exception $e) {
                 $likes = 0;
             }
-            // Push profile into results
+            // Push result into profiles
             $profiles[] = [
                 'name' => $name,
                 'bio' => $bio,
