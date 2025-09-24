@@ -28,7 +28,7 @@ class Kernel extends ConsoleKernel
         foreach ($profiles as $username) {
             ScrapeProfileJob::dispatch($username)->onQueue('jobs');
         }
-    })->cron('0 */72 * * *');
+    })->cron('0 0 */3 * *');
 
     }
 
